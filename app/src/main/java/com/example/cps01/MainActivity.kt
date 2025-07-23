@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             CpS01Theme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    CameraScreen()
+                    LoginScreen()
                 }
             }
         }
