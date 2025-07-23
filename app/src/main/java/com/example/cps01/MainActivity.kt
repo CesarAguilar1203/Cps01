@@ -9,20 +9,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.work.*
 import coil.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.delay
+import com.example.cps01.ui.theme.CpS01Theme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.TimeUnit
-import com.example.cps01.ui.theme.CpS01Theme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,19 +102,10 @@ private suspend fun readMjpegStream(url: String, onFrame: (ByteArray) -> Unit) {
 }
 
 private fun startMotionWorker(context: android.content.Context) {
-    val request = PeriodicWorkRequestBuilder<MotionWorker>(15, TimeUnit.MINUTES)
-        .build()
+    val request = PeriodicWorkRequestBuilder<MotionWorker>(15, TimeUnit.MINUTES).build()
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
         "motion-check",
         ExistingPeriodicWorkPolicy.KEEP,
         request
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CameraScreenPreview() {
-    CpS01Theme {
-        CameraScreen()
-    }
 }

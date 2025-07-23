@@ -1,5 +1,6 @@
 package com.example.cps01
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -13,14 +14,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.cps01.ui.theme.CpS01Theme
-import com.example.cps01.R
 
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("credentials", android.content.Context.MODE_PRIVATE) }
+    val prefs = remember {
+        context.getSharedPreferences("credentials", Context.MODE_PRIVATE)
+    }
 
     Column(
         modifier = Modifier
