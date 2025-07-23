@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -15,9 +16,11 @@ import com.example.cps01.ui.theme.CpS01Theme
 import com.example.cps01.R
 
 @Composable
-fun LoginScreen() {
+fun LoginScreen(onLoginSuccess: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("credentials", android.content.Context.MODE_PRIVATE) }
 
     Column(
         modifier = Modifier
@@ -68,7 +71,13 @@ fun LoginScreen() {
         Spacer(Modifier.height(24.dp))
 
         Button(
-            onClick = { /* TODO: Acción de inicio de sesión */ },
+            onClick = {
+                val savedEmail = prefs.getString("email", null)
+                val savedPass = prefs.getString("password", null)
+                if (email == savedEmail && password == savedPass) {
+                    onLoginSuccess()
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.login))
@@ -77,7 +86,9 @@ fun LoginScreen() {
         Spacer(Modifier.height(8.dp))
 
         OutlinedButton(
-            onClick = { /* TODO: Acción de registro */ },
+            onClick = {
+                prefs.edit().putString("email", email).putString("password", password).apply()
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.register))
@@ -89,6 +100,6 @@ fun LoginScreen() {
 @Composable
 fun LoginScreenPreview() {
     CpS01Theme {
-        LoginScreen()
+        LoginScreen {}
     }
 }

@@ -30,8 +30,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CpS01Theme {
+                var loggedIn by remember { mutableStateOf(false) }
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    LoginScreen()
+                    if (loggedIn) {
+                        CameraScreen()
+                    } else {
+                        LoginScreen { loggedIn = true }
+                    }
                 }
             }
         }
