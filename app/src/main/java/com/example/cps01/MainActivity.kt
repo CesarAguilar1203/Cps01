@@ -4,24 +4,23 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.view.ViewGroup
-import android.webkit.WebView
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.work.*
+import coil.compose.AsyncImage
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 import com.example.cps01.ui.theme.CpS01Theme
 
 class MainActivity : ComponentActivity() {
@@ -30,8 +29,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CpS01Theme {
+                var loggedIn by remember { mutableStateOf(false) }
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    CameraScreen()
+                    if (loggedIn) {
+                        CameraScreen()
+                    } else {
+                        LoginScreen { loggedIn = true }
+                    }
                 }
             }
         }
@@ -39,70 +43,73 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CameraScreen() {
-    var url by remember { mutableStateOf("") }
-    var showStream by remember { mutableStateOf(false) }
-    var snapshot by remember { mutableStateOf<Bitmap?>(null) }
+fun CameraScreen(streamUrl: String = MotionWorker.STREAM_URL) {
+    var frameBytes by remember { mutableStateOf<ByteArray?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        OutlinedTextField(
-            value = url,
-            onValueChange = { url = it },
-            label = { Text("IP o URL del ESP32-CAM") },
-            modifier = Modifier.fillMaxWidth()
+    LaunchedEffect(Unit) {
+        scope.launch(Dispatchers.IO) {
+            readMjpegStream(streamUrl) { bytes ->
+                frameBytes = bytes
+            }
+        }
+        startMotionWorker(context)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AsyncImage(
+            model = frameBytes,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize()
         )
-
-        Row(modifier = Modifier.padding(top = 8.dp)) {
-            Button(onClick = { showStream = true }) { Text("Mostrar") }
-            Spacer(Modifier.width(8.dp))
-            Button(onClick = {
-                if (url.isNotBlank()) {
-                    scope.launch {
-                        snapshot = loadBitmap(url.trimEnd('/') + "/capture")
-                    }
-                }
-            }) { Text("Capturar") }
-        }
-
-        if (showStream && url.isNotBlank()) {
-            AndroidView(
-                factory = { context ->
-                    WebView(context).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        settings.javaScriptEnabled = true
-                        loadUrl(url)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(top = 16.dp)
-            )
-        }
-
-        snapshot?.let { bmp ->
-            Image(
-                bitmap = bmp.asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-            )
+        OutlinedButton(
+            onClick = { /* future config */ },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Text("Config")
         }
     }
 }
 
-private suspend fun loadBitmap(url: String): Bitmap? = withContext(Dispatchers.IO) {
-    return@withContext try {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.inputStream.use { BitmapFactory.decodeStream(it) }
-    } catch (_: Exception) {
-        null
+private suspend fun readMjpegStream(url: String, onFrame: (ByteArray) -> Unit) {
+    withContext(Dispatchers.IO) {
+        while (true) {
+            try {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                val stream = connection.inputStream
+                val buffer = ByteArrayOutputStream()
+                var prev = -1
+                var b: Int
+                while (stream.read().also { b = it } != -1) {
+                    if (prev == 0xFF && b == 0xD8) buffer.reset()
+                    buffer.write(b)
+                    if (prev == 0xFF && b == 0xD9) {
+                        onFrame(buffer.toByteArray())
+                    }
+                    prev = b
+                }
+                stream.close()
+                connection.disconnect()
+            } catch (_: Exception) {
+                delay(1000)
+            }
+        }
     }
+}
+
+private fun startMotionWorker(context: android.content.Context) {
+    val request = PeriodicWorkRequestBuilder<MotionWorker>(15, TimeUnit.MINUTES)
+        .build()
+    WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+        "motion-check",
+        ExistingPeriodicWorkPolicy.KEEP,
+        request
+    )
 }
 
 @Preview(showBackground = true)
