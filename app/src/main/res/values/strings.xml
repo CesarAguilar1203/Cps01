@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">CpS0.1</string>
+    <string name="login">Iniciar sesión</string>
+    <string name="register">Registrarme</string>
+    <string name="email">Correo electrónico</string>
+    <string name="password">Contraseña</string>
+    <string name="app_title">Nombre de la Aplicación</string>
 </resources>
